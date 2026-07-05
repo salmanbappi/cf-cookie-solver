@@ -13,18 +13,17 @@ class SolveResponse(BaseModel):
     cf_clearance: str
     user_agent: str
 
-app = FastAPI(title="CF Cookie Solver", version="2.0.0")
+app = FastAPI(title="CF Cookie Solver", version="2.1.0")
 
 
 async def _solve(url: str) -> dict:
     browser = await launch_async(
-        headless=True,
+        headless=False,
+        humanize=True,
         args=[
             "--no-sandbox",
             "--disable-dev-shm-usage",
             "--disable-gpu",
-            "--single-process",
-            "--no-zygote",
         ]
     )
     try:
@@ -32,7 +31,7 @@ async def _solve(url: str) -> dict:
         await page.goto(url, wait_until="domcontentloaded", timeout=60000)
 
         context = page.context
-        for _ in range(90):
+        for _ in range(120):  # 60s
             cookies = await context.cookies()
             cf = next((c for c in cookies if c["name"] == "cf_clearance"), None)
             if cf:
@@ -40,7 +39,7 @@ async def _solve(url: str) -> dict:
                 return {"cf_clearance": cf["value"], "user_agent": ua}
             await asyncio.sleep(0.5)
 
-        raise TimeoutError("cf_clearance not received after 45s")
+        raise TimeoutError("cf_clearance not received after 60s")
     finally:
         await browser.close()
 
